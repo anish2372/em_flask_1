@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Add New Device</h3>
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Device Key (16 digits)</label>
+      <input type="text" name="device_key" class="form-control" required maxlength="16">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">WiFi SSID</label>
+      <input type="text" name="ssid" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">WiFi Password</label>
+      <input type="password" name="wifi_password" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success">Register Device</button>
+  </form>
+</div>
+{% endblock %}

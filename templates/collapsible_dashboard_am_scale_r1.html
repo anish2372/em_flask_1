@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Energy Meter Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #eaeaea;
+      margin: 0;
+      padding: 20px;
+    }
+    #card-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .card {
+      background-color: #fff;
+      width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      padding: 15px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .card.expanded {
+      width: 100%;
+      max-width: 1100px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .status-box {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    .status-box h4 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .status-box span {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .toggle-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .fuse-indicator {
+      display: inline-block;
+      padding: 6px 10px;
+      background: #ffc107;
+      border-radius: 12px;
+      font-weight: bold;
+      color: #000;
+      margin-top: 10px;
+    }
+    .card-details {
+      display: none;
+      margin-top: 15px;
+    }
+    .card.expanded .card-details {
+      display: block;
+    }
+    .details-section {
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    .details-section h5 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    .details-section label {
+      font-weight: 500;
+      display: block;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+<template id="device-card-template">
+  <div class="card" data-device-id="" onclick="expandCard(event, this)">
+    <div class="card-title">Device Name</div>
+    <button class="toggle-btn" onclick="toggleDevice(event)">ON</button>
+    <div class="fuse-indicator"><i class="fas fa-bolt"></i> Fuse OK</div>
+
+    <div class="status-box">
+      <h4>Voltage (V)</h4>
+      <span class="voltage">0.0</span>
+    </div>
+    <div class="status-box">
+      <h4>Current (A)</h4>
+      <span class="current">0.0</span>
+    </div>
+    <div class="status-box">
+      <h4>Energy (KWH)</h4>
+      <span class="energy">0.0</span>
+    </div>
+
+    <!-- Expandable section -->
+    <div class="card-details">
+      <div class="details-section">
+        <h5>Voltage Settings</h5>
+        <label for="minVoltage">Min Voltage:</label>
+        <input type="number" class="min-voltage" step="1">
+        <label for="maxVoltage">Max Voltage:</label>
+        <input type="number" class="max-voltage" step="1">
+      </div>
+
+      <div class="details-section">
+        <h5>Current Settings</h5>
+        <label for="maxCurrent">Max Current:</label>
+        <input type="number" class="max-current" step="0.1">
+      </div>
+
+      <div class="details-section">
+        <h5>Timer Configuration</h5>
+        <p>(Future use: populate timers, auto/manual settings, scheduling, etc.)</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<div id="card-container"></div>
+
+<script>
+  const NUM_DEVICES = 8;
+  const container = document.getElementById("card-container");
+  const template = document.getElementById("device-card-template");
+
+  for (let i = 0; i < NUM_DEVICES; i++) {
+    const clone = template.content.cloneNode(true);
+    const card = clone.querySelector(".card");
+    card.setAttribute("data-device-id", i);
+    card.querySelector(".card-title").textContent = `Switch ${i + 1}`;
+    container.appendChild(clone);
+  }
+
+  function updateDeviceData(deviceId, data) {
+    const card = document.querySelector(`.card[data-device-id='${deviceId}']`);
+    if (!card) return;
+    card.querySelector(".voltage").textContent = data.voltage.toFixed(1);
+    card.querySelector(".current").textContent = data.current.toFixed(1);
+    card.querySelector(".energy").textContent = data.energy.toFixed(1);
+    card.querySelector(".min-voltage").value = data.minVoltage || 200;
+    card.querySelector(".max-voltage").value = data.maxVoltage || 240;
+    card.querySelector(".max-current").value = data.maxCurrent || 5.0;
+
+    const fuseEl = card.querySelector(".fuse-indicator");
+    if (data.fuseBlown) {
+      fuseEl.style.backgroundColor = '#dc3545';
+      fuseEl.style.color = '#fff';
+      fuseEl.innerHTML = '<i class="fas fa-bolt"></i> Fuse Blown';
+    } else {
+      fuseEl.style.backgroundColor = '#ffc107';
+      fuseEl.style.color = '#000';
+      fuseEl.innerHTML = '<i class="fas fa-bolt"></i> Fuse OK';
+    }
+  }
+
+  function toggleDevice(event) {
+    event.stopPropagation();
+    const btn = event.target;
+    btn.textContent = btn.textContent === 'ON' ? 'OFF' : 'ON';
+    btn.classList.toggle('off');
+  }
+
+  function expandCard(event, card) {
+    const tag = event.target.tagName.toLowerCase();
+    if (['button', 'input'].includes(tag)) return;
+    card.classList.toggle('expanded');
+  }
+
+  setInterval(() => {
+    for (let i = 0; i < NUM_DEVICES; i++) {
+      updateDeviceData(i, {
+        voltage: 210 + Math.random() * 20,
+        current: 1 + Math.random() * 4,
+        energy: 1000 + Math.random() * 100,
+        fuseBlown: Math.random() < 0.1,
+        minVoltage: 200,
+        maxVoltage: 240,
+        maxCurrent: 5.0
+      });
+    }
+  }, 2000);
+</script>
+
+</body>
+</html>

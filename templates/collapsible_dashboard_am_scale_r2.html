@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Energy Meter Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/paho-mqtt/mqtt.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #eaeaea;
+      margin: 0;
+      padding: 20px;
+    }
+    #card-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .card {
+      background-color: #fff;
+      width: 300px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      padding: 15px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .card.expanded {
+      width: 100%;
+      max-width: 1100px;
+    }
+    .card.locked {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .status-box {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    .status-box h4 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .status-box span {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .toggle-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .fuse-indicator {
+      display: inline-block;
+      padding: 6px 10px;
+      background: #ffc107;
+      border-radius: 12px;
+      font-weight: bold;
+      color: #000;
+      margin-top: 10px;
+    }
+    .card-details {
+      display: none;
+      margin-top: 15px;
+    }
+    .card.expanded .card-details {
+      display: block;
+    }
+    .details-section {
+      background: #f0f0f0;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    .details-section h5 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    .details-section label {
+      font-weight: 500;
+      display: block;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+<template id="device-card-template">
+  <div class="card" data-device-id="" onclick="expandCard(event, this)">
+    <div class="card-title">Device Name</div>
+    <button class="toggle-btn" onclick="toggleDevice(event)">ON</button>
+    <div class="fuse-indicator"><i class="fas fa-bolt"></i> Fuse OK</div>
+    <div class="status-box">
+      <h4>Voltage (V)</h4>
+      <span class="voltage">0.0</span>
+    </div>
+    <div class="status-box">
+      <h4>Current (A)</h4>
+      <span class="current">0.0</span>
+    </div>
+    <div class="status-box">
+      <h4>Energy (KWH)</h4>
+      <span class="energy">0.0</span>
+    </div>
+    <div class="card-details">
+      <div class="details-section">
+        <h5>Voltage Settings</h5>
+        <label>Min Voltage:</label>
+        <input type="number" class="min-voltage" step="1">
+        <label>Max Voltage:</label>
+        <input type="number" class="max-voltage" step="1">
+      </div>
+      <div class="details-section">
+        <h5>Current Settings</h5>
+        <label>Max Current:</label>
+        <input type="number" class="max-current" step="0.1" onchange="setCurrentLimit(this)">
+      </div>
+      <div class="details-section">
+        <h5>Timer Configuration</h5>
+        <p>(Future use: populate timers, auto/manual settings, scheduling, etc.)</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<div id="card-container"></div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const NUM_DEVICES = 8;
+    const MAC_ADDRESS = "AA:BB:CC:DD:EE:FF";
+    const container = document.getElementById("card-container");
+    const template = document.getElementById("device-card-template");
+    const deviceData = Array(NUM_DEVICES).fill().map(() => ({}));
+    let isAutoMode = true;
+
+    for (let i = 0; i < NUM_DEVICES; i++) {
+      const clone = template.content.cloneNode(true);
+      const card = clone.querySelector(".card");
+      card.setAttribute("data-device-id", i);
+      card.querySelector(".card-title").textContent = `Switch ${i + 1}`;
+      container.appendChild(clone);
+    }
+
+    function updateDeviceData(deviceId, data) {
+      const card = document.querySelector(`.card[data-device-id='${deviceId}']`);
+      if (!card) return;
+      card.querySelector(".voltage").textContent = data.voltage.toFixed(1);
+      card.querySelector(".current").textContent = data.current.toFixed(1);
+      card.querySelector(".energy").textContent = data.energy.toFixed(1);
+      card.querySelector(".min-voltage").value = data.minVoltage || 200;
+      card.querySelector(".max-voltage").value = data.maxVoltage || 240;
+      card.querySelector(".max-current").value = data.maxCurrent || 5.0;
+
+      const fuseEl = card.querySelector(".fuse-indicator");
+      if (data.fuseBlown) {
+        fuseEl.style.backgroundColor = '#dc3545';
+        fuseEl.style.color = '#fff';
+        fuseEl.innerHTML = '<i class="fas fa-bolt"></i> Fuse Blown';
+      } else {
+        fuseEl.style.backgroundColor = '#ffc107';
+        fuseEl.style.color = '#000';
+        fuseEl.innerHTML = '<i class="fas fa-bolt"></i> Fuse OK';
+      }
+
+      if (!isAutoMode) card.classList.add("locked");
+      else card.classList.remove("locked");
+    }
+
+    window.toggleDevice = function(event) {
+      event.stopPropagation();
+      const btn = event.target;
+      const card = btn.closest(".card");
+      const id = parseInt(card.dataset.deviceId);
+      const state = btn.textContent === 'ON' ? 0 : 1;
+      btn.textContent = state ? 'ON' : 'OFF';
+      btn.classList.toggle('off');
+      const relayRegister = 8 + id;
+      client.publish(`${MAC_ADDRESS}/request`, JSON.stringify({ write: { [relayRegister]: state } }));
+    };
+
+    window.setCurrentLimit = function(input) {
+      const card = input.closest(".card");
+      const id = parseInt(card.dataset.deviceId);
+      const value = parseFloat(input.value);
+      const reg = 83 + id;
+      client.publish(`${MAC_ADDRESS}/request`, JSON.stringify({ write: { [reg]: value } }));
+    };
+
+    window.expandCard = function(event, card) {
+      const tag = event.target.tagName.toLowerCase();
+      if (["button", "input"].includes(tag)) return;
+      card.classList.toggle("expanded");
+    };
+
+    const client = new Paho.MQTT.Client("mqtt.eclipseprojects.io", 80, "/mqtt", "clientId-" + Math.random());
+
+    client.onConnectionLost = err => console.error("Connection lost", err);
+    client.onMessageArrived = message => {
+      if (message.destinationName === `${MAC_ADDRESS}/response`) {
+        const payload = JSON.parse(message.payloadString);
+        const registers = payload.data;
+        isAutoMode = registers[91] === 1;
+        for (let i = 0; i < NUM_DEVICES; i++) {
+          const d = deviceData[i];
+          d.voltage = registers[40] || 0;
+          d.current = registers[32 + i] || 0;
+          d.energy = registers[51 + i] || 0;
+          d.fuseBlown = registers[16 + i] === 0;
+          d.minVoltage = 200;
+          d.maxVoltage = 240;
+          d.maxCurrent = registers[83 + i] || 5.0;
+          updateDeviceData(i, d);
+        }
+      }
+    };
+
+    client.connect({
+      onSuccess: () => {
+        console.log("Connected to MQTT");
+        client.subscribe(`${MAC_ADDRESS}/response`);
+        client.publish(`${MAC_ADDRESS}/request`, JSON.stringify({ read: Array.from({length: 93}, (_, i) => i) }));
+      },
+      useSSL: false
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MQTT Receiver</title>
+  <script src="{{ url_for('static', filename='mqttws31.min.js') }}"></script>
+</head>
+<body>
+  <h1>MQTT Receiver</h1>
+  <ul id="messages"></ul>
+  <p>Status: <span id="status">Connecting...</span></p>
+
+  <script>
+    const client = new Paho.MQTT.Client("mqtt.eclipseprojects.io", 80, "/mqtt", "receiver-" + Math.random());
+
+    client.onMessageArrived = function(message) {
+      const li = document.createElement("li");
+      li.innerText = message.payloadString;
+      document.getElementById("messages").appendChild(li);
+    };
+
+    client.connect({
+      onSuccess: () => {
+        document.getElementById("status").innerText = "Connected";
+        console.log("Connected");
+        client.subscribe("flask/mqtt/chat");
+      },
+      onFailure: err => {
+        document.getElementById("status").innerText = "Failed";
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

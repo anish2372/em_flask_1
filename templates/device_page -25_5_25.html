@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}Device - {{ device.device_name or 'Unnamed Device' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex align-items-center mb-3">
+    <h2 class="me-3">{{ device.device_name or 'Unnamed Device' }}</h2>
+    <!-- Button to open modal -->
+    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editNameModal">
+      Edit Name
+    </button>
+  </div>
+
+  {% if not isAutoMode %}
+  <div class="alert alert-warning mb-3">
+    <i class="fas fa-exclamation-triangle"></i> Device is in MANUAL mode. Controls are disabled.
+  </div>
+  {% endif %}
+
+  <div id="card-container" class="row g-3">
+    <!-- Cards will be dynamically inserted here -->
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header bg-primary text-white">
+      <i class="fas fa-sliders-h"></i> Global Controls
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="d-flex align-items-center mb-3">
+            <span class="me-3">Emergency Stop:</span>
+            <button id="emergencyStopBtn" class="btn btn-danger">
+              <i class="fas fa-power-off"></i> Activate Emergency Stop
+            </button>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex align-items-center">
+            <span class="me-3">Operation Mode:</span>
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-outline-primary {% if isAutoMode %}active{% endif %}" id="autoModeBtn">
+                Auto
+              </button>
+              <button type="button" class="btn btn-outline-primary {% if not isAutoMode %}active{% endif %}" id="manualModeBtn">
+                Manual
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for editing device name -->
+<div class="modal fade" id="editNameModal" tabindex="-1" aria-labelledby="editNameModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('device_page', device_key=device.device_key) }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editNameModalLabel">Edit Device Name</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="deviceNameInput" class="form-label">Device Name</label>
+            <input type="text" name="device_name" id="deviceNameInput" class="form-control" value="{{ device.device_name or '' }}" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Name</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Device Card Template -->
+<template id="device-card-template">
+  <div class="col-md-6 col-lg-4 col-xl-3" data-channel="{channel}">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Switch {channel}</h5>
+        <span class="badge bg-{fuse-color}">
+          <i class="fas fa-bolt"></i> {fuse-status}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span>Status:</span>
+          <div class="form-check form-switch d-flex align-items-center">
+            <input class="form-check-input channel-toggle" type="checkbox" id="toggle-{channel}" data-channel="{channel}">
+            <label class="form-check-label ms-2" for="toggle-{channel}"><span class="status-value">{status}</span></label>
+          </div>
+        </div>
+        
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <div class="p-2 bg-light rounded">
+              <small class="text-muted">Voltage (V)</small>
+              <div class="h5 mb-0 voltage-value">{voltage}</div>
+              <small class="voltage-trip text-{trip-color}">{trip-text}</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 bg-light rounded">
+              <small class="text-muted">Current (A)</small>
+              <div class="h5 mb-0 current-value">{current}</div>
+              <small class="current-trip text-{current-trip-color}">{current-trip-text}</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 bg-light rounded">
+              <small class="text-muted">Power (KW)</small>
+              <div class="h5 mb-0 power-value">{power}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 bg-light rounded">
+              <small class="text-muted">Energy (KWH)</small>
+              <div class="h5 mb-0 energy-value">{energy}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="input-group mb-3">
+          <span class="input-group-text">Current Limit (A)</span>
+          <input type="number" class="form-control current-limit" value="{current-limit}" step="0.1" min="0.1" max="20" data-channel="{channel}">
+          <button class="btn btn-outline-secondary" type="button" onclick="updateCurrentLimit({channel})">
+            <i class="fas fa-save"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Include Font Awesome for icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+<script>
+  const deviceKey = "{{ device.device_key }}";
+  let currentData = {};
+  let isAutoMode = true;  // Default to auto mode
+
+  // Initialize the device UI with 8 channels
+  function initializeDeviceUI() {
+    const container = document.getElementById('card-container');
+    const template = document.getElementById('device-card-template');
+    
+    // Clear existing cards
+    container.innerHTML = '';
+    
+    // Create cards for all 8 channels
+    for (let i = 0; i < 8; i++) {
+      const clone = template.content.cloneNode(true);
+      const cardHtml = clone.querySelector('div').outerHTML
+        <!-- .replace(/{channel}/g, i + 1) -->
+        <!-- .replace(/{channel-index}/g, i) -->
+        <!-- .replace(/{status}/g, '_') -->
+        <!-- .replace(/{voltage}/g, '_') -->
+        <!-- .replace(/{current}/g, '_') -->
+        <!-- .replace(/{power}/g, '_') -->
+        <!-- .replace(/{energy}/g, '_') -->
+        <!-- .replace(/{current-limit}/g, '_') -->
+        <!-- .replace(/{fuse-status}/g, '_') -->
+        <!-- .replace(/{fuse-color}/g, 'secondary') -->
+        <!-- .replace(/{trip-text}/g, '_') -->
+        <!-- .replace(/{trip-color}/g, '') -->
+        <!-- .replace(/{current-trip-text}/g, '_') -->
+        <!-- .replace(/{current-trip-color}/g, ''); -->
+		.replace(/{channel}/g, '##')
+		.replace(/{status}/g, '')
+		.replace(/{voltage}/g, '0.0')
+		.replace(/{current}/g, '0.0')
+		.replace(/{power}/g, '0.0')
+		.replace(/{energy}/g, '0.0')
+		.replace(/{current-limit}/g, '')
+		.replace(/{fuse-status}/g, '')
+		.replace(/{fuse-color}/g, 'secondary')
+		.replace(/{trip-text}/g, '')
+		.replace(/{trip-color}/g, '')
+		.replace(/{current-trip-text}/g, '')
+		.replace(/{current-trip-color}/g, '');
+
+      
+      container.insertAdjacentHTML('beforeend', cardHtml);
+    }
+    
+    // Initial data load
+    fetchDeviceData();
+  }
+
+  // Minimal stub for trip indicator update (implement as needed)
+  function updateTripIndicator(channelIndex, type, tripValue) {
+    const card = document.querySelector(`.card[data-channel="${channelIndex + 1}"]`);
+    if (!card) return;
+
+    if(type === 'voltage') {
+      const el = card.querySelector('.voltage-trip');
+      if(el) {
+        el.textContent = tripValue ? 'TRIP' : '';
+        el.className = `voltage-trip text-${tripValue ? 'danger' : 'muted'}`;
+      }
+    } else if(type === 'current') {
+      const el = card.querySelector('.current-trip');
+      if(el) {
+        el.textContent = tripValue ? 'TRIP' : '';
+        el.className = `current-trip text-${tripValue ? 'danger' : 'muted'}`;
+      }
+    }
+  }
+
+  // Update UI of a single device card
+  function updateDeviceUI(channelIndex, data) {
+    const card = document.querySelector(`.card[data-channel="${channelIndex + 1}"]`);
+    if (!card) return;
+
+    // Status text and toggle
+    const toggle = card.querySelector('.channel-toggle');
+    const statusText = card.querySelector('.status-value');
+
+    if (data.status === 1) {
+      toggle.checked = true;
+      statusText.textContent = 'ON';
+    } else {
+      toggle.checked = false;
+      statusText.textContent = 'OFF';
+    }
+
+    // Voltage, current, power, energy
+    card.querySelector('.voltage-value').textContent = data.voltage.toFixed(2);
+    card.querySelector('.current-value').textContent = data.current.toFixed(2);
+    card.querySelector('.power-value').textContent = data.power.toFixed(2);
+    card.querySelector('.energy-value').textContent = data.energy.toFixed(2);
+
+    // Current limit
+    const currentLimitInput = card.querySelector('.current-limit');
+    if (currentLimitInput) currentLimitInput.value = data.current_limit.toFixed(2);
+
+    // Fuse status badge
+    const fuseBadge = card.querySelector('.card-header .badge');
+    if (data.fuse_tripped) {
+      fuseBadge.textContent = 'TRIPPED';
+      fuseBadge.className = 'badge bg-danger';
+    } else {
+      fuseBadge.textContent = 'OK';
+      fuseBadge.className = 'badge bg-success';
+    }
+
+    // Update trip indicators
+    updateTripIndicator(channelIndex, 'voltage', data.voltage_trip);
+    updateTripIndicator(channelIndex, 'current', data.current_trip);
+  }
+
+  // Fetch latest device data from server (AJAX or fetch)
+  async function fetchDeviceData() {
+    try {
+      const response = await fetch(`/api/device_data/${deviceKey}`);
+      if (!response.ok) throw new Error('Failed to fetch device data');
+      const data = await response.json();
+      currentData = data.channels;  // Assume data.channels is an array of 8 channels
+
+      currentData.forEach((channelData, index) => {
+        updateDeviceUI(index, channelData);
+      });
+    } catch (error) {
+      console.error('Error fetching device data:', error);
+    }
+  }
+
+  // Handle toggle switch changes
+  document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('channel-toggle')) {
+      const channel = parseInt(e.target.getAttribute('data-channel')) - 1;
+      const newStatus = e.target.checked ? 1 : 0;
+
+      if (!isAutoMode) {
+        alert('Device is in manual mode. Controls are disabled.');
+        e.target.checked = !e.target.checked;  // revert toggle
+        return;
+      }
+
+      // Send toggle update to server
+      fetch(`/api/device_control/${deviceKey}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ channel: channel + 1, status: newStatus })
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to update status');
+        return res.json();
+      }).then(data => {
+        updateDeviceUI(channel, data.channelData);
+      }).catch(err => {
+        alert('Error updating status: ' + err.message);
+        e.target.checked = !e.target.checked;  // revert toggle on error
+      });
+    }
+  });
+
+  // Handle current limit save button
+  function updateCurrentLimit(channel) {
+    const card = document.querySelector(`.card[data-channel="${channel}"]`);
+    if (!card) return;
+    const input = card.querySelector('.current-limit');
+    const value = parseFloat(input.value);
+
+    if (isNaN(value) || value <= 0) {
+      alert('Please enter a valid current limit > 0');
+      return;
+    }
+
+    fetch(`/api/device_current_limit/${deviceKey}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ channel, current_limit: value })
+    }).then(res => {
+      if (!res.ok) throw new Error('Failed to update current limit');
+      return res.json();
+    }).then(data => {
+      alert('Current limit updated for channel ' + channel);
+      updateDeviceUI(channel - 1, data.channelData);
+    }).catch(err => {
+      alert('Error updating current limit: ' + err.message);
+    });
+  }
+
+  // Global control buttons
+  document.getElementById('emergencyStopBtn').addEventListener('click', () => {
+    if (!confirm('Are you sure you want to activate Emergency Stop?')) return;
+    fetch(`/api/device_emergency_stop/${deviceKey}`, { method: 'POST' })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to activate emergency stop');
+        alert('Emergency Stop activated!');
+        fetchDeviceData();
+      }).catch(err => alert(err.message));
+  });
+
+  document.getElementById('autoModeBtn').addEventListener('click', () => {
+    fetch(`/api/device_set_mode/${deviceKey}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'auto' })
+    }).then(res => {
+      if (!res.ok) throw new Error('Failed to set Auto mode');
+      isAutoMode = true;
+      alert('Switched to Auto mode');
+      fetchDeviceData();
+    }).catch(err => alert(err.message));
+  });
+
+  document.getElementById('manualModeBtn').addEventListener('click', () => {
+    fetch(`/api/device_set_mode/${deviceKey}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: 'manual' })
+    }).then(res => {
+      if (!res.ok) throw new Error('Failed to set Manual mode');
+      isAutoMode = false;
+      alert('Switched to Manual mode');
+      fetchDeviceData();
+    }).catch(err => alert(err.message));
+  });
+
+  // On page load
+  window.addEventListener('DOMContentLoaded', () => {
+    initializeDeviceUI();
+  });
+</script>
+{% endblock %}
+

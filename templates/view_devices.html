@@ -1,0 +1,32 @@
+{% extends "admin_base.html" %}
+{% block title %}Registered Devices{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Registered Devices</h3>
+  <table class="table table-bordered table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>Device Key</th>
+        <th>SSID</th>
+        <th>WiFi Password</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for device in devices %}
+      <tr>
+        <td>{{ device[0] }}</td>
+        <td>{{ device[1] }}</td>
+        <td>{{ device[2] }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('delete_device', key=device[0]) }}" onsubmit="return confirm('Are you sure you want to delete this device?');">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

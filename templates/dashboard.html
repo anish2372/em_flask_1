@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <h2 class="mb-4">Welcome, {{ session.username }}!</h2>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0"><i class="fas fa-list-alt"></i> Registered Devices</h5>
+    </div>
+    <div class="card-body">
+      {% if devices %}
+        <ul class="list-group list-group-flush">
+          {% for device in devices %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <a href="{{ url_for('device_page', device_key=device['device_key']) }}" class="text-decoration-none fs-5">
+                {{ device['device_name'] or 'Unnamed Device' }} (Key: {{ device['device_key'] }})
+              </a>
+              <span class="badge bg-primary rounded-pill">View Details</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="alert alert-info" role="alert">
+          No devices registered yet. <a href="{{ url_for('add_device') }}" class="alert-link">Add a new device</a> to get started!
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Timer Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+  .upload-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 8px;
+}
+.upload-button:hover {
+  background-color: #0056b3;
+}
+	.control-group {
+  margin-top: 10px;
+}
+.control-group label {
+  font-size: 14px;
+  font-weight: 500;
+}
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+.control-row button {
+  padding: 4px 10px;
+  font-size: 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.control-row button.minus {
+  background-color: #dc3545; /* Bootstrap red */
+  color: white;
+}
+.control-row button.plus {
+  background-color: #28a745; /* Bootstrap green */
+  color: white;
+}
+.control-row input[type="number"] {
+  width: 60px;
+  text-align: center;
+  padding: 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #eaeaea;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background-color: #fff;
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .header button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .header button i {
+      margin-right: 5px;
+    }
+    .three-way-toggle {
+      display: flex;
+      background: #f0f0f0;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
+    }
+    .three-way-toggle button {
+      flex: 1;
+      border: none;
+      background: #dcdcdc;
+      padding: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s ease;
+    }
+    .three-way-toggle button.active {
+      background: #007BFF;
+      color: white;
+    }
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toggle-switch input[type="checkbox"] {
+      width: 40px;
+      height: 20px;
+      accent-color: #28a745;
+      cursor: pointer;
+    }
+    .status-indicator {
+      padding: 10px 15px;
+      background-color: #ffc107;
+      border-radius: 20px;
+      font-weight: bold;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+    .collapsible-button {
+      margin-top: 20px;
+      background-color: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .collapsible-button i {
+      margin-right: 8px;
+    }
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s ease, padding 0.3s ease;
+    }
+    .collapsible-content.open {
+      max-height: 1000px;
+      padding-top: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+    .status {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    .status-box {
+      background-color: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .status-box:hover {
+      transform: translateY(-3px);
+    }
+    .status-box h4 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .status-box span {
+      font-weight: bold;
+      font-size: 20px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 14px;
+      color: #666;
+    }
+	.fuse-status-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  width: 150px;
+  text-align: center;
+  margin-top: 10px;
+  margin-left: 20px;
+  display: inline-block;
+  vertical-align: top;
+}
+.fuse-status-card h4 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #333;
+}
+.fuse-indicator {
+  font-weight: bold;
+  font-size: 18px;
+  padding: 10px;
+  border-radius: 8px;
+  color: #000;
+  background-color: yellow; /* default OK state */
+}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+	<div style="display: flex; align-items: center; gap: 15px; margin-top: 20px;">
+	  <button id="toggleButton" class="toggle-btn on" onclick="toggleDevice()">ON</button>
+	  <div id="fuseIndicator" style="
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background-color: #ffc107; /* Default Yellow */
+    color: #000;
+    font-weight: bold;
+    font-size: 14px;
+  ">
+    <i class="fas fa-bolt"></i>
+    Fuse OK
+  </div>
+</div>
+      <div class="three-way-toggle" id="prePostToggle">
+        <button onclick="setMode(this)" data-value="PRE">PRE</button>
+        <button onclick="setMode(this)" data-value="POST">POST</button>
+        <button onclick="setMode(this)" data-value="NONE">NONE</button>
+      </div>
+      <div class="toggle-switch">
+        <label for="timerToggle"><i class="fas fa-clock"></i> TIMER</label>
+        <input type="checkbox" id="timerToggle" />
+      </div>
+      <div class="status-indicator">
+        <i class="fas fa-info-circle"></i> A/M STATUS: AUTO
+      </div>
+      <button><i class="fas fa-plus"></i> Create Timer +</button>
+    </div>
+    <button class="collapsible-button" onclick="toggleTimerList()">
+      <i class="fas fa-list"></i> Show/Hide Timer List
+    </button>
+    <div class="collapsible-content" id="timerList">
+      <h3>TIMER LIST</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Timer</th>
+            <th>Days</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>COM. STATUS</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>T1</td><td>M T W F S</td><td>10:00 am</td><td>12:00 pm</td><td>ON</td><td>Edit | Delete</td></tr>
+          <tr><td>T2</td><td>M T W F S</td><td>10:00 am</td><td>12:00 pm</td><td>ON</td><td>Edit | Delete</td></tr>
+          <tr><td>T3</td><td>M T W F S</td><td>10:00 am</td><td>12:00 pm</td><td>ON</td><td>Edit | Delete</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="status">
+  <div class="status-box">
+    <h4><i class="fas fa-bolt"></i> Voltage (V)</h4>
+    <span>221.6</span>
+    <div style="margin-top: 5px; font-size: 14px; color: #666;">
+      Frequency: <strong>49.8 Hz</strong>
+    </div>
+    <details style="margin-top: 10px;">
+      <summary style="cursor: pointer; color: #007bff;">Voltage Limits</summary>
+      <div class="control-group">
+        <label>Min Limit:</label>
+        <div class="control-row">
+          <button class="minus" onclick="changeLimit('minVoltage', -1)">−</button>
+          <input type="number" id="minVoltage" value="200" step="1" />
+          <button class="plus" onclick="changeLimit('minVoltage', 1)">+</button>
+          <button class="upload-button" onclick="uploadVoltage()">UP.</button>
+        </div>
+      </div>
+      <div class="control-group" style="margin-top: 10px;">
+        <label>Max Limit:</label>
+        <div class="control-row">
+          <button class="minus" onclick="changeLimit('maxVoltage', -1)">−</button>
+          <input type="number" id="maxVoltage" value="240" step="1" />
+          <button class="plus" onclick="changeLimit('maxVoltage', 1)">+</button>
+          <button class="upload-button" onclick="uploadVoltage()">UP.</button>
+        </div>
+      </div>
+    </details>
+  </div>
+  <div class="status-box">
+    <h4><i class="fas fa-tachometer-alt"></i> Current (A)</h4>
+    <span>1.5</span>
+	<div class="control-group" style="margin-top: 10px;">
+    <label>Power (KW):</label>
+    <div class="control-row">
+      <span style="font-weight: bold; font-size: 16px;">0.8</span>
+    </div></div>
+    <details style="margin-top: 10px;">
+      <summary style="cursor: pointer; color: #007bff;">Current Limit</summary>
+      <div class="control-group">
+        <label>Max Limit:</label>
+        <div class="control-row">
+          <button class="minus" onclick="changeLimit('maxCurrent', -0.1)">−</button>
+          <input type="number" id="maxCurrent" value="5.0" step="0.1" />
+          <button class="plus" onclick="changeLimit('maxCurrent', 0.1)">+</button>
+          <button class="upload-button" onclick="uploadVoltage()">UP.</button>
+        </div>
+      </div>
+    </details>
+  </div>
+      <div class="status-box"><h4><i class="fas fa-battery-half"></i> Energy (KWH)</h4><span>1006.2</span></div>
+      <div class="status-box"><h4><i class="fas fa-solar-panel"></i> Total Energy (KWHA)</h4><span>48.2</span></div>
+	  <div class="status-box" id="timeBox">
+  <h4><i class="fas fa-clock"></i> Time</h4>
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <span id="timeValue">12:34:58</span>
+    <button onclick="resetTime()" title="Reset Time"
+            style="background-color: #ffc107; color: #000; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+      R
+    </button>
+  </div>
+</div>
+    </div>
+    <div class="footer">
+      &copy; 2025 Dashboard Interface
+    </div>
+  </div>
+  <script>
+    function toggleTimerList() {
+      const content = document.getElementById("timerList");
+      content.classList.toggle("open");
+    }
+    function setMode(button) {
+      const buttons = button.parentElement.querySelectorAll("button");
+      buttons.forEach(btn => btn.classList.remove("active"));
+      button.classList.add("active");
+      console.log("Selected mode:", button.dataset.value);
+    }
+  </script>
+<script>
+  function resetTime() {
+    document.getElementById("timeValue").textContent = "00:00:00";
+  }
+</script>
+<script>
+  function toggleVoltageLimits(button) {
+    const limitsDiv = button.nextElementSibling;
+    const isVisible = limitsDiv.style.display === 'block';
+    limitsDiv.style.display = isVisible ? 'none' : 'block';
+    button.textContent = isVisible ? 'Show Limits' : 'Hide Limits';
+  }
+  function changeLimit(id, delta) {
+    const input = document.getElementById(id);
+    let value = parseFloat(input.value);
+    input.value = (value + delta).toFixed(input.step.includes('.') ? 1 : 0);
+  }
+  function uploadVoltage() {
+    alert('Voltage limits uploaded!');
+  }
+</script>
+<script>
+function updateFuseStatus(isBlown) {
+  const fuseIndicator = document.getElementById('fuseIndicator');
+  if (isBlown) {
+    fuseIndicator.style.backgroundColor = '#dc3545'; // red
+    fuseIndicator.style.color = '#fff';
+    fuseIndicator.innerHTML = '<i class="fas fa-bolt"></i> Fuse Blown';
+  } else {
+    fuseIndicator.style.backgroundColor = '#ffc107'; // yellow
+    fuseIndicator.style.color = '#000';
+    fuseIndicator.innerHTML = '<i class="fas fa-bolt"></i> Fuse OK';
+  }
+}
+</script>
+</body>
+</html>

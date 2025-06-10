@@ -1,0 +1,1409 @@
+{% extends "base.html" %}
+{% block title %}Device - {{ device.device_name or 'Unnamed Device' }}{% endblock %}
+
+{% block content %}
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #f5f7fa;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+    }
+
+    /* The original #top-bar is now empty, but keeping its styles for reference if needed elsewhere */
+    #top-bar {
+        display: none;
+        /* Hide the original top bar as its content is moved */
+    }
+
+    .divider {
+        opacity: 0.4;
+        margin: 0 10px;
+    }
+
+    .badge {
+        background: #007bff;
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+    }
+
+    #card-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 25px;
+        justify-content: center;
+    }
+
+    /* Styles for the device group card */
+    .device-group-card {
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        margin-bottom: 25px;
+        width: 100%;
+        max-width: 1200px;
+        box-sizing: border-box;
+    }
+
+    .device-group-title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #0056b3;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 15px;
+    }
+
+    .device-group-title i {
+        color: #007bff;
+    }
+
+    /* New: Styles for the moved global status bar within the device group card */
+    .device-group-status-bar {
+        background: #f9f9f9;
+        /* Lighter background for distinction */
+        padding: 15px 20px;
+        margin-bottom: 25px;
+        border-radius: 10px;
+        /* Slightly less rounded than main card */
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 15px;
+        font-weight: 500;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        /* Subtle inner shadow */
+    }
+
+    .switch-cards-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 25px;
+        justify-content: center;
+    }
+
+    .card {
+        background-color: #fff;
+        width: 320px;
+        border-radius: 15px;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+        padding: 20px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    .switch-cards-container .card {
+        width: calc(33.33% - 17px);
+        min-width: 280px;
+    }
+
+    .card.expanded {
+        width: 100%;
+        max-width: 1200px;
+    }
+
+    .card-title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .card-title i {
+        color: #007bff;
+    }
+
+    .button-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .status-box {
+        background: #f9f9f9;
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .status-box h4 {
+        margin: 0 0 10px;
+        font-size: 16px;
+        color: #555;
+    }
+
+    .status-box span {
+        font-size: 22px;
+        font-weight: bold;
+        color: #222;
+    }
+
+    .toggle-btn {
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 8px 15px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+    }
+
+    .toggle-btn:hover {
+        opacity: 0.9;
+        transform: translateY(-2px);
+    }
+
+    .toggle-btn.off {
+        background: #dc3545;
+    }
+
+    .toggle-btn.on {
+        background: #28a745;
+    }
+
+    .indicator {
+        display: inline-block;
+        padding: 8px 14px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .fuse-indicator {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .current-indicator {
+        background: #e9ecef;
+        color: #000;
+    }
+
+    .current-indicator.warning {
+        background: #ffc107;
+        color: #000;
+    }
+
+    .current-indicator.fault {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    /* New class for the setting communication indicator to avoid conflicts */
+    .current-setting-status-indicator {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ccc;
+        margin-left: 10px;
+        vertical-align: middle;
+    }
+
+    .current-setting-status-indicator.pending {
+        background: #ff9800;
+    }
+
+    .current-setting-status-indicator.success {
+        background: #4caf50;
+    }
+
+    .current-setting-status-indicator.error {
+        background: #f44336;
+    }
+
+
+    #toast-container {
+        position: fixed;
+        top: 20px;
+        right: 25px;
+        z-index: 1000;
+    }
+
+    .toast {
+        background: #333;
+        color: #fff;
+        padding: 12px 18px;
+        margin-top: 10px;
+        border-radius: 8px;
+        animation: fadeout 3s forwards;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    @keyframes fadeout {
+        0% {
+            opacity: 1;
+        }
+
+        80% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    }
+
+    .flash {
+        animation: flash-anim 1s ease;
+    }
+
+    @keyframes flash-anim {
+        0% {
+            background-color: #ffffcc;
+        }
+
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    .timer-btn {
+        background: #6c757d;
+    }
+
+    .timer-btn.on {
+        background: #17a2b8;
+    }
+
+    .timer-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 15px;
+    }
+
+    .timer-tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        font-weight: 500;
+        border-radius: 6px 6px 0 0;
+        background: #f1f1f1;
+        margin-right: 5px;
+        flex-grow: 1;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .timer-tab.active {
+        background: #007bff;
+        color: white;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .timer-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        table-layout: auto;
+    }
+
+    .timer-table th,
+    .timer-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #eee;
+        text-align: center;
+    }
+
+    .timer-table th {
+        background: #f1f1f1;
+        font-weight: 600;
+        color: #444;
+        text-align: left;
+    }
+
+    .timer-table tr:hover {
+        background: #f9f9f9;
+    }
+
+    .days-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        justify-content: center;
+    }
+
+    .day-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1px solid #ddd;
+        background: #fff;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+
+    .day-btn.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .time-input {
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 90px;
+        font-size: 13px;
+        box-sizing: border-box;
+    }
+
+    .com-indicator {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #ccc;
+        margin: auto;
+    }
+
+    .com-indicator.pending {
+        background: #ff9800;
+    }
+
+    .com-indicator.success {
+        background: #4caf50;
+    }
+
+    .com-indicator.error {
+        background: #f44336;
+    }
+
+    .action-btn {
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 0 2px;
+        white-space: nowrap;
+    }
+
+    .toggle-timer-row-action {
+        background: #f1f1f1;
+        color: #333;
+    }
+
+    .toggle-timer-row-action.on {
+        background: #28a745;
+        color: white;
+    }
+
+    .toggle-timer-row-action.off {
+        background: #dc3545;
+        color: white;
+    }
+
+    .save-timer-action {
+        background: #007bff;
+        color: white;
+    }
+
+    .delete-action {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .add-timer-btn {
+        margin-top: 15px;
+        padding: 8px 15px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .timer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+        .switch-cards-container .card {
+            width: calc(50% - 12.5px);
+        }
+    }
+
+    @media (max-width: 768px) {
+        body {
+            padding: 10px;
+        }
+
+        .device-group-status-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .device-group-status-bar .divider {
+            display: none;
+        }
+
+        .device-group-status-bar #shutdown-btn {
+            margin-left: 0;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .device-group-card {
+            padding: 20px;
+        }
+
+        .device-group-title {
+            font-size: 22px;
+            margin-bottom: 15px;
+        }
+
+        .switch-cards-container .card {
+            width: 100%;
+        }
+
+        .card.expanded {
+            max-width: 100%;
+        }
+
+        .card-title {
+            font-size: 18px;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+
+        .toggle-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .indicator {
+            font-size: 14px;
+            padding: 6px 10px;
+            justify-content: center;
+        }
+
+        .status-box h4 {
+            font-size: 14px;
+        }
+
+        .status-box span {
+            font-size: 20px;
+        }
+
+        .timer-tabs {
+            flex-direction: column;
+        }
+
+        .timer-tab {
+            margin-right: 0;
+            margin-bottom: 5px;
+            border-radius: 6px;
+        }
+
+        .tab-content {
+            overflow-x: auto;
+            /* Allow horizontal scrolling for table if needed */
+        }
+
+        .timer-table {
+            display: block;
+            /* Make table a block element to enable horizontal scroll */
+            width: max-content;
+            /* Allow table to take content width */
+            min-width: 100%;
+            /* Ensure it takes at least 100% of parent width */
+        }
+
+        .timer-table th,
+        .timer-table td {
+            padding: 8px 5px;
+            font-size: 12px;
+            white-space: normal;
+            /* Allow text to wrap in table cells */
+            word-break: break-word;
+            /* Break long words */
+        }
+
+        .timer-table th:nth-child(1),
+        .timer-table th:nth-child(2),
+        .timer-table th:nth-child(3),
+        .timer-table th:nth-child(4),
+        .timer-table th:nth-child(5),
+        .timer-table th:nth-child(6),
+        .timer-table th:nth-child(7) {
+            width: auto;
+        }
+
+        .days-container {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            /* Align day buttons to start */
+            gap: 2px;
+            /* Reduce gap further */
+        }
+
+        .day-btn {
+            width: 20px;
+            /* Even smaller day buttons */
+            height: 20px;
+            font-size: 8px;
+        }
+
+        .time-input {
+            width: 60px;
+            /* Adjust time input width */
+            font-size: 11px;
+        }
+
+        .action-btn {
+            padding: 3px 6px;
+            font-size: 9px;
+        }
+    }
+</style>
+
+<div id="toast-container"></div>
+
+<template id="device-group-template">
+    <div class="device-group-card" data-device-group-id="">
+        <div class="device-group-title">
+            <i class="fas fa-microchip"></i> Device: {{ device.device_name or 'Unnamed Device' }} (Key: {{ device.device_key }})
+        </div>
+        <div class="device-group-status-bar">
+            <span id="am-status" class="badge">Mode: --</span>
+            <span class="divider">|</span>
+            <span>Voltage: <strong id="global-voltage">--</strong> V</span>
+            <span class="divider">|</span>
+            <span>Total Amps: <strong id="global-amps">--</strong> A</span>
+            <span class="divider">|</span>
+            <span>Frequency: <strong id="global-freq">--</strong> Hz</span>
+            <button id="shutdown-btn" class="toggle-btn off" style="margin-left:auto;">
+                <i class="fas fa-power-off"></i> Shutdown All
+            </button>
+        </div>
+        <div class="switch-cards-container">
+            </div>
+    </div>
+</template>
+
+<template id="switch-card-template">
+    <div class="card" data-device-id="">
+        <div class="card-title">
+            <i class="fas fa-plug"></i> Switch
+        </div>
+        <div class="button-group">
+            <button class="toggle-btn off" onclick="toggleDevice(event)">
+                <i class="fas fa-toggle-off"></i> OFF
+            </button>
+            <button class="toggle-btn timer-btn off" onclick="toggleMasterTimerSwitch(event)">
+                <i class="fas fa-clock"></i> Timer OFF
+            </button>
+        </div>
+        <div class="fuse-indicator indicator">
+            <i class="fas fa-bolt"></i> Fuse Blown
+        </div>
+        <div class="current-indicator indicator">
+            <i class="fas fa-exclamation-triangle"></i> Current: <span class="current-status">Normal</span>
+        </div>
+        <div class="status-box">
+            <h4><i class="fas fa-bolt"></i> Current (A)</h4>
+            <span class="current">0.0</span>
+        </div>
+        <div class="status-box">
+            <h4><i class="fas fa-battery-three-quarters"></i> Energy (KWH)</h4>
+            <span class="energy">0.0</span>
+        </div>
+        <div class="status-box">
+            <h4><i class="fas fa-charging-station"></i> Power (W)</h4>
+            <span class="power">0.0</span>
+        </div>
+        <div class="card-details">
+            <div class="timer-tabs">
+                <div class="timer-tab active" data-tab="voltage">Voltage Settings</div>
+                <div class="timer-tab" data-tab="current">Current Settings</div>
+                <div class="timer-tab" data-tab="energy">Energy Management</div>
+                <div class="timer-tab" data-tab="timer">Timer List</div>
+            </div>
+
+            <div id="voltage-tab" class="tab-content active">
+                <div class="details-section">
+                    <h5>
+                        <i class="fas fa-cogs"></i> Voltage Settings
+                        <span class="setting-com-indicator voltage-indicator" id="voltage-setting-indicator"></span>
+                    </h5>
+                    <label>Min Voltage:</label>
+                    <input type="number" class="min-voltage" step="1">
+                    <label>Max Voltage:</label>
+                    <input type="number" class="max-voltage" step="1">
+                </div>
+            </div>
+
+            <div id="current-tab" class="tab-content">
+				<div class="details-section">
+				  <h5>
+					Current Settings
+					<span class="current-setting-status-indicator" id="current-setting-indicator"></span>  </h5>
+				  <label>Max Current:</label>
+				  <input type="number" class="max-current" step="0.1" onchange="setCurrentLimit(this)">
+				</div>
+            </div>
+
+            <div id="energy-tab" class="tab-content">
+                <div class="details-section">
+                    <h5><i class="fas fa-battery-half"></i> Energy Management</h5>
+                    <button class="toggle-btn" onclick="resetEnergy(event, this)">
+                        <i class="fas fa-redo"></i> Reset Energy
+                    </button>
+                </div>
+            </div>
+
+            <div id="timer-tab" class="tab-content">
+                <div class="details-section">
+                    <div class="timer-header">
+                        <h5><i class="fas fa-list"></i> Timer List</h5>
+                        <button class="add-timer-btn" onclick="addTimerEntry(event)"> <i class="fas fa-plus"></i> Add Timer
+                        </button>
+                    </div>
+
+                    <table class="timer-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Days</th>
+                                <th>Start</th>
+                                <th>Stop</th>
+                                <th>Status</th>
+                                <th>Enabled</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="timer-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<div id="card-container"></div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+<script>
+    // Define expandCard in the global scope so it's accessible from event listeners
+    function expandCard(event, card) {
+        console.log("expandCard called.");
+        console.log("Event target:", event.target);
+        console.log("Card element:", card);
+
+        const target = event.target;
+        // Check if the click originated from an interactive element or its child
+        if (target.closest('button') || target.closest('input') || target.classList.contains('timer-tab') || target.classList.contains('day-btn')) {
+            console.log("Click originated from an interactive element, preventing card expansion.");
+            return; // Do not expand if an interactive element was clicked
+        }
+
+        // Toggle the 'expanded' class on the card
+        card.classList.toggle("expanded");
+        console.log("Card 'expanded' class toggled. Current classes:", card.classList);
+    }
+
+    // Global variables for MQTT client and data
+    let client;
+    let lastKnownData = {};
+    const activeTimerTransactions = {};
+    const activeSettingTransactions = {};
+
+    // Global MQTT Topics
+    const DEVICE_KEY = "{{ device.device_key }}"; // Get the actual device key from Flask
+    const MQTT_REQUEST_TOPIC = `${DEVICE_KEY}/request`;
+    const MQTT_RESPONSE_TOPIC = `${DEVICE_KEY}/response`;
+
+
+    // Function to show toast messages (moved to global scope)
+    function showToast(message, isError = false) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        if (isError) {
+            toast.style.backgroundColor = "#dc3545";
+        }
+        document.getElementById("toast-container").appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Function to wait for MQTT to be defined
+    function waitForMqtt(callback, retries = 50, delay = 100) {
+        if (typeof mqtt !== 'undefined') {
+            console.log("MQTT library is defined. Proceeding with initialization.");
+            callback();
+        } else if (retries > 0) {
+            console.warn(`MQTT library not yet defined. Retrying in ${delay}ms... (Retries left: ${retries})`);
+            setTimeout(() => waitForMqtt(callback, retries - 1, delay), delay);
+        } else {
+            console.error("Failed to load MQTT library after multiple retries. MQTT functionality will be unavailable.");
+            showToast("Error: MQTT library failed to load. Please refresh the page.", true);
+        }
+    }
+
+    // Functions moved to global scope for accessibility
+    function publishVoltageSettings(id, minV, maxV) {
+        const card = document.querySelector(`.card[data-device-id="${id}"]`);
+        // Use the specific ID for the voltage indicator
+        const comIndicator = card.querySelector(`#voltage-setting-indicator`);
+        if (comIndicator) {
+            comIndicator.className = "setting-com-indicator pending";
+        }
+        activeSettingTransactions[`${id}_voltage`] = true;
+
+        const payload = {
+            settings: { relay: id, minVoltage: minV, maxVoltage: maxV }
+        };
+        client.publish(MQTT_REQUEST_TOPIC, JSON.stringify(payload));
+        showToast(`Voltage settings sent for Switch ${id + 1}...`);
+    }
+
+	function publishCurrentSettings(id, maxC) {
+        const card = document.querySelector(`.card[data-device-id="${id}"]`);
+        // Target the indicator within the current settings tab using the new class
+        const comIndicator = card.querySelector(`#current-setting-indicator`);
+        if (comIndicator) {
+            comIndicator.classList.add("pending"); // Add pending class
+            comIndicator.classList.remove("success", "error"); // Ensure other states are removed
+        }
+        activeSettingTransactions[`${id}_current`] = true;
+
+        const payload = {
+            settings: { relay: id, maxCurrent: maxC }
+        };
+        client.publish(MQTT_REQUEST_TOPIC, JSON.stringify(payload));
+        showToast(`Current settings sent for Switch ${id + 1}...`);
+    }
+
+    function resetEnergy(event, button) {
+        event.stopPropagation();
+        const card = button.closest(".card");
+        const id = parseInt(card.getAttribute("data-device-id"));
+        client.publish(MQTT_REQUEST_TOPIC, JSON.stringify({ resetEnergy: id }));
+        showToast(`Energy counter reset for Switch ${id + 1}`);
+    }
+
+    function createTimerRowElement(deviceId, timerId, initialEnabled = false, days = [], startTime = "08:00", stopTime = "17:00") {
+        const newRow = document.createElement("tr");
+        newRow.dataset.timerId = timerId;
+
+        const daysHtml = [0, 1, 2, 3, 4, 5, 6].map(dayIndex =>
+            `<button class="day-btn ${days.includes(dayIndex) ? 'active' : ''}" data-day="${dayIndex}">${['M', 'T', 'W', 'T', 'F', 'S', 'S'][dayIndex]}</button>`
+        ).join('');
+
+        newRow.innerHTML = `
+        <td>${timerId}</td>
+        <td><div class="days-container">${daysHtml}</div></td>
+        <td><input type="time" class="time-input start-time" value="${startTime}"></td>
+        <td><input type="time" class="time-input stop-time" value="${stopTime}"></td>
+        <td><div class="com-indicator"></div></td>
+        <td>
+            <button class="action-btn toggle-timer-row-action ${initialEnabled ? 'on' : 'off'}">
+                ${initialEnabled ? 'ON' : 'OFF'}
+            </button>
+        </td>
+        <td>
+            <button class="action-btn save-timer-action"><i class="fas fa-save"></i></button>
+            <button class="action-btn delete-action"><i class="fas fa-trash"></i></button>
+        </td>
+    `;
+
+        newRow.querySelector(".toggle-timer-row-action").onclick = (e) => toggleTimerEntryEnabled(e);
+        newRow.querySelector(".save-timer-action").onclick = (e) => saveTimerConfig(e);
+        newRow.querySelector(".delete-action").onclick = (e) => deleteTimerEntry(e);
+
+        newRow.querySelectorAll(".day-btn").forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                e.target.classList.toggle('active');
+            };
+        });
+        return newRow;
+    }
+
+    function addTimerEntry(event) {
+        event.stopPropagation();
+        const card = event.target.closest(".card");
+        const deviceId = parseInt(card.getAttribute("data-device-id"));
+        const tbody = card.querySelector(".timer-body");
+
+        const existingTimers = tbody.querySelectorAll("tr").length;
+        const newTimerId = `T${existingTimers + 1}`;
+
+        const newRow = createTimerRowElement(deviceId, newTimerId);
+        tbody.appendChild(newRow);
+        showToast(`New timer row ${newTimerId} added for Switch ${deviceId + 1}. Configure and save.`);
+    }
+
+    function saveTimerConfig(event) {
+        event.stopPropagation();
+        const button = event.target.closest(".save-timer-action");
+        const row = button.closest("tr");
+        const card = row.closest(".card");
+        const deviceId = parseInt(card.getAttribute("data-device-id"));
+        const timerId = row.dataset.timerId;
+
+        const startTime = row.querySelector(".start-time").value;
+        const stopTime = row.querySelector(".stop-time").value;
+        const selectedDays = Array.from(row.querySelectorAll(".days-container .day-btn.active")).map(btn => parseInt(btn.dataset.day));
+        const isEnabled = row.querySelector(".toggle-timer-row-action").classList.contains("on");
+
+        const payload = {
+            action: "save_timer",
+            deviceId: deviceId,
+            timerId: timerId,
+            days: selectedDays,
+            startTime: startTime,
+            stopTime: stopTime,
+            enabled: isEnabled
+        };
+
+        client.publish(MQTT_REQUEST_TOPIC, JSON.stringify(payload));
+        row.querySelector(".com-indicator").className = "com-indicator pending";
+        activeTimerTransactions[`${deviceId}_${timerId}`] = 'save';
+        showToast(`Saving Timer ${timerId} for Switch ${deviceId + 1}...`);
+    }
+
+    function deleteTimerEntry(event) {
+        event.stopPropagation();
+        const button = event.target.closest(".delete-action");
+        const row = button.closest("tr");
+        const card = row.closest(".card");
+        const deviceId = parseInt(card.getAttribute("data-device-id"));
+        const timerId = row.dataset.timerId;
+
+        if (confirm(`Are you sure you want to delete Timer ${timerId} for Switch ${deviceId + 1}?`)) {
+            const payload = {
+                action: "delete_timer",
+                deviceId: deviceId,
+                timerId: timerId
+            };
+            client.publish(MQTT_REQUEST_TOPIC, JSON.stringify(payload));
+            row.querySelector(".com-indicator").className = "com-indicator pending";
+            activeTimerTransactions[`${deviceId}_${timerId}`] = 'delete';
+            showToast(`Deleting Timer ${timerId} for Switch ${deviceId + 1}...`);
+        }
+    }
+
+    function toggleTimerEntryEnabled(event) {
+        event.stopPropagation();
+        const button = event.target.closest(".toggle-timer-row-action");
+        const row = button.closest("tr");
+        const card = row.closest(".card");
+        const deviceId = parseInt(card.getAttribute("data-device-id"));
+        const timerId = row.dataset.timerId;
+
+        const currentIsEnabled = button.classList.contains("on");
+        const newIsEnabled = !currentIsEnabled;
+
+        const payload = {
+            action: "toggle_timer_entry",
+            deviceId: deviceId,
+            timerId: timerId,
+            enabled: newIsEnabled
+        };
+        client.publish(MQTT_REQUEST_TOPIC, JSON.stringify(payload));
+        row.querySelector(".com-indicator").className = "com-indicator pending";
+        activeTimerTransactions[`${deviceId}_${timerId}`] = 'toggle';
+        showToast(`Toggling Timer ${timerId} for Switch ${deviceId + 1} to ${newIsEnabled ? "ON" : "OFF"}`);
+    }
+
+    function updateTimerRowFromData(row, timerData) {
+        row.dataset.timerId = timerData.timerId;
+        row.cells[0].textContent = timerData.timerId;
+
+        const daysContainer = row.querySelector(".days-container");
+        daysContainer.querySelectorAll(".day-btn").forEach((btn) => {
+            const day = parseInt(btn.dataset.day);
+            btn.classList.toggle("active", timerData.days.includes(day));
+        });
+
+        row.querySelector(".start-time").value = timerData.startTime;
+        row.querySelector(".stop-time").value = timerData.stopTime;
+
+        const toggleBtn = row.querySelector(".toggle-timer-row-action");
+        toggleBtn.textContent = timerData.enabled ? "ON" : "OFF";
+        toggleBtn.classList.toggle("on", timerData.enabled);
+        toggleBtn.classList.toggle("off", !timerData.enabled);
+
+        row.querySelector(".com-indicator").className = "com-indicator success";
+    }
+
+
+    // Wrap the rest of the script in DOMContentLoaded to ensure all HTML and external scripts are loaded
+	const MAC_ADDRESS = "{{ device.device_key }}";
+    document.addEventListener("DOMContentLoaded", function() {
+        console.log("--- Script Start (DOMContentLoaded) ---");
+        const NUM_DEVICES = 8; // Number of switches per physical device
+		//const MAC_ADDRESS = "{{ device.device_key }}";
+        // DEVICE_KEY, MQTT_REQUEST_TOPIC, MQTT_RESPONSE_TOPIC are now global
+
+        const container = document.getElementById("card-container");
+        const deviceGroupTemplate = document.getElementById("device-group-template");
+        const switchCardTemplate = document.getElementById("switch-card-template");
+
+        // lastKnownData will be initialized with data from Flask
+        // IMPORTANT: Use JSON.parse and |safe filter for proper rendering of Flask JSON into JS
+        console.log("Attempting to parse last_state string:", '{{ last_state | tojson | safe }}');
+        let initialLastKnownData = {};
+        const rawLastStateString = '{{ last_state | tojson | safe }}'.trim(); // Trim whitespace
+
+        // Check if the string still contains Jinja2 templating syntax, indicating it wasn't processed
+        if (rawLastStateString.startsWith('{{') && rawLastStateString.endsWith('}}')) {
+            console.warn("Jinja2 templating for last_state seems unprocessed. Defaulting to empty object.");
+            initialLastKnownData = {}; // Default to empty object if templating failed
+        } else if (rawLastStateString && rawLastStateString !== 'null') { // Only attempt to parse if the string is not empty or 'null'
+            try {
+                initialLastKnownData = JSON.parse(rawLastStateString);
+            } catch (e) {
+                console.error("Error parsing last_state JSON:", e);
+                console.error("Raw string that caused error:", rawLastStateString);
+                // initialLastKnownData remains {} if parsing fails
+            }
+        }
+        Object.assign(lastKnownData, initialLastKnownData); // Assign to global lastKnownData
+        console.log("lastKnownData initialized:", lastKnownData);
+
+
+        // Start waiting for MQTT library to load
+        waitForMqtt(() => {
+            client = mqtt.connect("wss://mqtt.eclipseprojects.io:443/mqtt");
+
+            client.on("connect", () => {
+                console.log("Connected to MQTT Broker for device:", DEVICE_KEY);
+                client.subscribe(MQTT_RESPONSE_TOPIC);
+
+                // Request full state from the device when connected
+                console.log("Publishing request_full_state to:", MQTT_REQUEST_TOPIC);
+                client.publish(MQTT_REQUEST_TOPIC, JSON.stringify({ request_full_state: 1 }));
+            });
+
+            // This is the primary MQTT message handler
+            client.on("message", (topic, message) => {
+                try {
+                    const incoming = JSON.parse(message.toString());
+                    console.log("MQTT Received:", topic, incoming);
+
+                    if (topic === MQTT_RESPONSE_TOPIC) {
+                        // Handle settings_response and timer_response separately
+                        if (incoming.settings_response) {
+                            handleSettingsActionResponse(incoming.settings_response);
+                        } else if (incoming.timer_response) {
+                            handleTimerActionResponse(incoming.timer_response);
+                        } else {
+                            // This is assumed to be a full state update
+                            Object.assign(lastKnownData, incoming); // Update lastKnownData with incoming MQTT data
+                            console.log("Updated lastKnownData after MQTT message:", lastKnownData);
+
+                            const autoMode = lastKnownData[91] === 1;
+                            const deviceGroupCard = document.querySelector(".device-group-card");
+                            if (deviceGroupCard) {
+                                updateTextWithFlash(deviceGroupCard.querySelector("#global-voltage"), (lastKnownData[40] || 0).toFixed(1));
+                                let totalAmps = 0;
+                                for (let i = 0; i < NUM_DEVICES; i++) {
+                                    totalAmps += parseFloat(lastKnownData[32 + i] || 0);
+                                }
+                                updateTextWithFlash(deviceGroupCard.querySelector("#global-amps"), totalAmps.toFixed(2));
+                                updateTextWithFlash(deviceGroupCard.querySelector("#global-freq"), (lastKnownData[42] || 0).toFixed(1));
+
+                                const modeEl = deviceGroupCard.querySelector("#am-status");
+                                const modeText = autoMode ? "AUTO" : "MANUAL";
+                                modeEl.textContent = "Mode: " + modeText;
+                                modeEl.style.background = autoMode ? "#28a745" : "#dc3545";
+                            }
+
+
+                            for (let i = 0; i < NUM_DEVICES; i++) {
+                                const card = document.querySelector(`.card[data-device-id="${i}"]`);
+                                console.log("Card for device", i, ":", card);
+                                if (!card) continue;
+
+                                const relayState = lastKnownData[8 + i] ? "ON" : "OFF";
+                                const fuseStatus = lastKnownData[16 + i] ? "OK" : "Blown";
+                                const current = lastKnownData[32 + i] || 0;
+                                const energy = lastKnownData[51 + i] || 0;
+                                const voltage = lastKnownData[40] || 0;
+                                const currentStatus = lastKnownData[67 + i] || 0;
+                                const masterTimerEnabled = lastKnownData[93 + i] === 1;
+
+                                const powerBtn = card.querySelector(".toggle-btn:not(.timer-btn)");
+                                console.log("powerBtn:", powerBtn);
+                                powerBtn.textContent = relayState;
+                                powerBtn.classList.toggle("off", relayState === "OFF");
+                                powerBtn.classList.toggle("on", relayState === "ON");
+                                powerBtn.disabled = masterTimerEnabled || !autoMode;
+
+                                const timerBtn = card.querySelector(".timer-btn");
+                                timerBtn.innerHTML = `<i class="fas fa-clock"></i> Timer ${masterTimerEnabled ? "ON" : "OFF"}`;
+                                timerBtn.classList.toggle("on", masterTimerEnabled);
+                                timerBtn.classList.toggle("off", !masterTimerEnabled);
+                                timerBtn.disabled = !autoMode;
+
+                                const currentIndicator = card.querySelector(".current-indicator");
+                                const currentStatusText = ["Normal", "Low/High Current", "Over Current Trip"][currentStatus] || "Unknown";
+                                currentIndicator.querySelector(".current-status").textContent = currentStatusText;
+                                // Use classList.remove and add to avoid overwriting existing classes
+                                currentIndicator.classList.remove("warning", "fault"); // Remove previous status classes
+                                if (currentStatus === 1) currentIndicator.classList.add("warning");
+                                else if (currentStatus === 2) currentIndicator.classList.add("fault");
+
+                                const power = voltage * current;
+                                updateTextWithFlash(card.querySelector(".current"), current.toFixed(2));
+                                updateTextWithFlash(card.querySelector(".energy"), energy.toFixed(2));
+                                updateTextWithFlash(card.querySelector(".power"), power.toFixed(2));
+
+                                const fuseEl = card.querySelector(".fuse-indicator");
+                                fuseEl.innerHTML = `<i class='fas fa-bolt'></i> Fuse ${fuseStatus}`;
+                                fuseEl.style.backgroundColor = fuseStatus === "Blown" ? "#dc3545" : "#ffc107";
+                                fuseEl.style.color = fuseStatus === "Blown" ? "#fff" : "#000";
+
+                                card.querySelector(".min-voltage").disabled = !autoMode;
+                                card.querySelector(".max-voltage").disabled = !autoMode;
+                                card.querySelector(".max-current").disabled = !autoMode;
+
+                                // Update input values with last known data
+                                card.querySelector(".min-voltage").value = lastKnownData[43 + i] !== undefined ? lastKnownData[43 + i] : '';
+                                card.querySelector(".max-voltage").value = lastKnownData[44 + i] !== undefined ? lastKnownData[44 + i] : '';
+                                card.querySelector(".max-current").value = lastKnownData[24 + i] !== undefined ? lastKnownData[24 + i] : '';
+
+
+                                if (incoming.device_timers && incoming.device_timers[i]) {
+                                    populateTimersForDevice(card, i, incoming.device_timers[i]);
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("MQTT JSON error or data parsing error:", e);
+                }
+            });
+        }); // End of waitForMqtt callback
+
+
+        function handleTimerActionResponse(response) {
+            const { deviceId, timerId, action_ack, status, message, timerData } = response;
+            const card = document.querySelector(`.card[data-device-id="${deviceId}"]`);
+            if (!card) return;
+
+            const tbody = card.querySelector(".timer-body");
+            let targetRow = null;
+            tbody.querySelectorAll("tr").forEach(row => {
+                if (row.dataset.timerId === timerId) {
+                    targetRow = row;
+                }
+            });
+
+            if (!targetRow) {
+                console.warn(`Timer row not found for response: device ${deviceId}, timer ${timerId}`);
+                return;
+            }
+
+            const comIndicator = targetRow.querySelector(".com-indicator");
+            const transactionKey = `${deviceId}_${timerId}`;
+
+            if (status === "success") {
+                comIndicator.className = "com-indicator success";
+                showToast(message || `Timer ${timerId} on Switch ${deviceId + 1}: Action successful.`);
+
+                if (action_ack === "delete_timer_ack") {
+                    targetRow.remove();
+                    const remainingRows = tbody.querySelectorAll("tr");
+                    remainingRows.forEach((row, index) => {
+                        if (!row.dataset.timerId.startsWith("T_custom_")) {
+                            const newTId = `T${index + 1}`;
+                            row.cells[0].textContent = newTId;
+                            row.dataset.timerId = newTId;
+                        }
+                    });
+                } else if (action_ack === "save_timer_ack" && timerData) {
+                    updateTimerRowFromData(targetRow, timerData);
+                } else if (action_ack === "toggle_timer_entry_ack" && timerData) {
+                    const toggleBtn = targetRow.querySelector(".toggle-timer-row-action");
+                    toggleBtn.textContent = timerData.enabled ? "ON" : "OFF";
+                    toggleBtn.classList.toggle("on", timerData.enabled);
+                    toggleBtn.classList.toggle("off", !timerData.enabled);
+                }
+
+            } else if (status === "error") {
+                comIndicator.className = "com-indicator error";
+                showToast(`Timer Error (Switch ${deviceId + 1}, ${timerId}): ${message || 'Unknown error'}`, true);
+            } else {
+                comIndicator.className = "com-indicator";
+            }
+            delete activeTimerTransactions[transactionKey];
+        }
+
+        function handleSettingsActionResponse(response) {
+            const { deviceId, settingType, status, message } = response;
+            const card = document.querySelector(`.card[data-device-id="${deviceId}"]`);
+            if (!card) return;
+
+            // Select the correct indicator based on settingType
+            let comIndicator;
+            if (settingType === "voltage") {
+                comIndicator = card.querySelector(`#voltage-setting-indicator`);
+            } else if (settingType === "current") {
+                // Target the indicator using the new specific class
+                comIndicator = card.querySelector(`#current-setting-indicator`);
+            }
+            // Add more conditions for other setting types if they are introduced
+
+            if (!comIndicator) {
+                console.warn(`Setting indicator not found for response: device ${deviceId}, type ${settingType}`);
+                return;
+            }
+
+            const transactionKey = `${deviceId}_${settingType}`;
+
+            // Update classes using classList methods for better control
+            comIndicator.classList.remove("pending", "success", "error"); // Clear previous states
+            if (status === "success") {
+                comIndicator.classList.add("success");
+                showToast(message || `${settingType} settings for Switch ${deviceId + 1}: Action successful.`);
+            } else if (status === "error") {
+                comIndicator.classList.add("error");
+                showToast(`${settingType} Settings Error (Switch ${deviceId + 1}): ${message || 'Unknown error'}`, true);
+            }
+            // If status is neither success nor error, it remains without specific status classes (e.g., default grey)
+
+            delete activeSettingTransactions[transactionKey];
+        }
+
+
+        function populateTimersForDevice(card, deviceId, timersDataArray) {
+            const tbody = card.querySelector(".timer-body");
+            tbody.innerHTML = "";
+
+            if (timersDataArray && timersDataArray.length > 0) {
+                timersDataArray.forEach(timerData => {
+                    const newRow = createTimerRowElement(deviceId, timerData.timerId, timerData.enabled, timerData.days, timerData.startTime, timerData.stopTime);
+                    tbody.appendChild(newRow);
+                });
+            }
+        }
+
+
+        function toggleDevice(event, relayId, newState) {
+            event.stopPropagation();
+            const card = event.target.closest(".card");
+            const deviceId = parseInt(card.getAttribute("data-device-id"));
+
+            client.publish(MQTT_REQUEST_TOPIC, JSON.stringify({
+                relay: deviceId,
+                state: newState ? 1 : 0
+            }));
+            showToast(`Switch ${deviceId + 1} command sent to turn ${newState ? "ON" : "OFF"}`);
+        }
+
+        function toggleMasterTimerSwitch(event) {
+            event.stopPropagation();
+            const button = event.closest(".timer-btn"); // Use .closest for robustness
+            const card = button.closest(".card");
+            const deviceId = parseInt(card.getAttribute("data-device-id"));
+            const autoMode = lastKnownData[91] === 1;
+
+            if (!autoMode) {
+                showToast("Timers can only be managed in AUTO mode.", true);
+                return;
+            }
+
+            const currentTimerState = button.classList.contains("on");
+            const newTimerState = !currentTimerState;
+
+            client.publish(MQTT_REQUEST_TOPIC, JSON.stringify({
+                relay: deviceId,
+                timer_master_switch: newTimerState ? 1 : 0
+            }));
+            showToast(`Master Timer for Switch ${deviceId + 1} command sent to turn ${newTimerState ? "ON" : "OFF"}`);
+        }
+
+
+        function updateTextWithFlash(el, newText) {
+            if (el && el.textContent !== newText) {
+                el.textContent = newText;
+                el.classList.add("flash");
+                setTimeout(() => el.classList.remove("flash"), 1000);
+            }
+        }
+
+        // Initial card rendering logic (moved inside DOMContentLoaded)
+        console.log("Cloning deviceGroupTemplate...");
+        const deviceGroupClone = deviceGroupTemplate.content.cloneNode(true);
+        const deviceGroupCard = deviceGroupClone.querySelector(".device-group-card");
+        const switchCardsContainer = deviceGroupCard.querySelector(".switch-cards-container");
+        console.log("Device group card and switch container obtained.");
+
+        // Attach event listener for the Shutdown All button now that it's part of the deviceGroupCard
+        const shutdownBtn = deviceGroupCard.querySelector("#shutdown-btn");
+        if (shutdownBtn) {
+            shutdownBtn.onclick = () => {
+                client.publish(MQTT_REQUEST_TOPIC, JSON.stringify({ shutdown: 1 }));
+                showToast("Shutdown command sent to all switches");
+            };
+            console.log("Shutdown button event listener attached.");
+        }
+
+        for (let i = 0; i < NUM_DEVICES; i++) {
+            console.log(`Processing switch card ${i}...`);
+            const clone = switchCardTemplate.content.cloneNode(true);
+            const card = clone.querySelector(".card");
+            card.setAttribute("data-device-id", i);
+            card.querySelector(".card-title").innerHTML = `<i class="fas fa-plug"></i> Switch ${i + 1}`;
+
+            // Assign unique IDs to voltage and current setting indicators
+            // The IDs are already unique within the template, but ensure they are correctly targeted
+            // by the JS functions.
+            const voltageIndicator = card.querySelector('#voltage-setting-indicator'); // Select by ID
+            if (voltageIndicator) {
+                // No need to re-assign ID if it's already in the template
+                console.log(`Voltage setting indicator ID: ${voltageIndicator.id}`);
+            }
+            const currentSettingIndicator = card.querySelector('#current-setting-indicator'); // Select by ID
+            if (currentSettingIndicator) {
+                // No need to re-assign ID if it's already in the template
+                console.log(`Current setting indicator ID: ${currentSettingIndicator.id}`);
+            }
+
+            const mainToggleButton = card.querySelector(".toggle-btn:not(.timer-btn)");
+            mainToggleButton.onclick = (e) => {
+                e.stopPropagation();
+                const isCurrentlyOff = mainToggleButton.classList.contains("off");
+                toggleDevice(e, i, isCurrentlyOff);
+            };
+
+            const masterTimerButton = card.querySelector(".timer-btn");
+            masterTimerButton.onclick = (e) => toggleMasterTimerSwitch(e);
+
+            const submitVoltageBtn = document.createElement("button");
+            submitVoltageBtn.textContent = "Submit Voltage Settings";
+            submitVoltageBtn.className = "toggle-btn";
+            submitVoltageBtn.style.marginTop = "15px";
+            submitVoltageBtn.style.backgroundColor = "#007bff";
+            submitVoltageBtn.onclick = (e) => {
+                e.stopPropagation();
+                const id = parseInt(card.getAttribute("data-device-id"));
+                const minV = parseFloat(card.querySelector(".min-voltage").value);
+                const maxV = parseFloat(card.querySelector(".max-voltage").value);
+                publishVoltageSettings(id, minV, maxV);
+            };
+            card.querySelector("#voltage-tab .details-section").appendChild(submitVoltageBtn);
+
+            const submitCurrentBtn = document.createElement("button");
+            submitCurrentBtn.textContent = "Submit Current Settings";
+            submitCurrentBtn.className = "toggle-btn";
+            submitCurrentBtn.style.marginTop = "15px";
+            submitCurrentBtn.style.backgroundColor = "#007bff";
+            submitCurrentBtn.onclick = (e) => {
+                e.stopPropagation();
+                const id = parseInt(card.getAttribute("data-device-id"));
+                const maxC = parseFloat(card.querySelector(".max-current").value);
+                publishCurrentSettings(id, maxC);
+            };
+            card.querySelector("#current-tab .details-section").appendChild(submitCurrentBtn);
+
+            switchCardsContainer.appendChild(clone);
+            console.log(`Switch card ${i} appended to container.`);
+        }
+
+        container.appendChild(deviceGroupClone);
+        console.log("Device group card appended to main container.");
+
+        // Add delegated event listener for card expansion/collapse
+        container.addEventListener('click', function(event) {
+            const clickedCard = event.target.closest('.card');
+            if (clickedCard) {
+                // Check if the click target is NOT an interactive element within the card
+                const isInteractiveElement = event.target.closest('button') || 
+                                             event.target.closest('input') || 
+                                             event.target.classList.contains('timer-tab') || 
+                                             event.target.classList.contains('day-btn');
+                
+                if (!isInteractiveElement) {
+                    expandCard(event, clickedCard);
+                }
+            }
+        });
+
+        // Tab switching functionality
+        document.addEventListener("click", function(e) {
+          if (e.target.classList.contains("timer-tab")) {
+            const tab = e.target;
+            const card = tab.closest(".card");
+            const tabs = card.querySelectorAll(".timer-tab");
+            const contents = card.querySelectorAll(".tab-content");
+            
+            tabs.forEach(t => t.classList.remove("active"));
+            contents.forEach(c => c.classList.remove("active"));
+            
+            tab.classList.add("active");
+            const contentId = tab.getAttribute("data-tab") + "-tab";
+            const activeContent = card.querySelector(`#${contentId}`);
+            if (activeContent) activeContent.classList.add("active");
+          }
+        });
+
+    }); // End of DOMContentLoaded
+	
+    // Function to set current limit, now calling the consistent publishCurrentSettings
+    window.setCurrentLimit = function(input) {
+        const card = input.closest(".card");
+        const id = parseInt(card.dataset.deviceId);
+        const value = parseFloat(input.value);
+        
+        // Call the existing publishCurrentSettings function for consistency
+        publishCurrentSettings(id, value);
+    };
+
+</script>
+{% endblock %}

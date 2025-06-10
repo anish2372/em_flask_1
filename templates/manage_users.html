@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Registered Users</h3>
+
+  <!-- New User Form -->
+  <form method="POST" class="mb-4">
+    <div class="row g-2">
+      <div class="col-md-4">
+        <input type="text" name="username" class="form-control" placeholder="Username" required>
+      </div>
+      <div class="col-md-4">
+        <input type="password" name="password" class="form-control" placeholder="Password" required>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-success" type="submit">Create User</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- User Table -->
+  <table class="table table-bordered">
+    <thead>
+      <tr><th>ID</th><th>Username</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td>{{ user[0] }}</td>
+        <td>{{ user[1] }}</td>
+        <td>
+          <form action="{{ url_for('delete_user', user_id=user[0]) }}" method="POST" onsubmit="return confirm('Delete this user?')">
+            <button class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
